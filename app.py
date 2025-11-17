@@ -6,8 +6,6 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.applications.resnet import preprocess_input
 from streamlit_carousel import carousel
-import gdown
-import os
 import pandas as pd
 from keras.applications.resnet import preprocess_input
 
@@ -45,7 +43,7 @@ def load_cnn_model():
         return load_model(model_path)
 
     # Direct Dropbox download link
-    url = "YOUR_DROPBOX_DIRECT_LINK_HERE"  # must end with ?dl=1
+    url = "https://www.dropbox.com/scl/fi/0p53vys1px9rpxhcy8v90/model.keras?rlkey=5govccle97y2rmc786fkei7t9&st=tp04sfhv&dl=1"  # must end with ?dl=1
     st.write("Downloading model from Dropbox... (this may take 20–40 seconds)")
 
     response = requests.get(url, stream=True)
