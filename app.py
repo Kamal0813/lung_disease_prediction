@@ -11,7 +11,6 @@ import os
 import pandas as pd
 from keras.applications.resnet import preprocess_input
 
-from huggingface_hub import hf_hub_download
 
 
 st.set_page_config(
@@ -31,33 +30,26 @@ def load_xgb_model():
     return model
 
 
-import requests
-import os
+from huggingface_hub import hf_hub_download
 from tensorflow.keras.models import load_model
+import os
+import streamlit as st
 
 @st.cache_resource
 def load_cnn_model():
-    model_path = "model.keras"
+    st.write("Downloading model from HuggingFace Hub…")
 
-    # Download only if the model is not already present
-    if not os.path.exists(model_path):
-        url = "https://huggingface.co/kamal0813/lung_cancer-cnn-model/resolve/main/model.keras"
-        st.write("Downloading large CNN model... please wait (this may take 20–40 seconds).")
+    # This automatically handles large files, redirects, and caching
+    model_path = hf_hub_download(
+        repo_id="kamal0813/lung_cancer-cnn-model",
+        filename="model.keras",
+        cache_dir="."
+    )
 
-        response = requests.get(url, stream=True)
-        if response.status_code == 200:
-            with open(model_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-        else:
-            st.error(f"Download failed! Status code: {response.status_code}")
-            st.stop()
-
-    # Debug: check file size
-    st.write("Model file size downloaded:", os.path.getsize(model_path), "bytes")
+    st.write("Downloaded file size:", os.path.getsize(model_path))
 
     return load_model(model_path)
+
 
 
 
