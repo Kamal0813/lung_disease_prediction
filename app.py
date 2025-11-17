@@ -37,11 +37,6 @@ import streamlit as st
 def load_cnn_model():
     model_path = "model.keras"
 
-    # Check if already downloaded
-    if os.path.exists(model_path):
-        st.write("Model exists. Size:", os.path.getsize(model_path))
-        return load_model(model_path)
-
     # Direct Dropbox download link
     url = "https://www.dropbox.com/scl/fi/0p53vys1px9rpxhcy8v90/model.keras?rlkey=5govccle97y2rmc786fkei7t9&st=tp04sfhv&dl=1"  # must end with ?dl=1
     st.write("Downloading model from Dropbox... (this may take 20–40 seconds)")
@@ -54,9 +49,6 @@ def load_cnn_model():
     with open(model_path, "wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
-
-    # Show file size after download
-    st.write("Downloaded size (bytes):", os.path.getsize(model_path))
 
     return load_model(model_path)
 
