@@ -36,8 +36,12 @@ def load_cnn_model():
     model_path = "model.keras"
 
     if not os.path.exists(model_path):
-        url = "https://huggingface.co/kamal0813/lung_cancer-cnn-model/resolve/main/model.keras"
-        gdown.download(url, model_path, quiet=False, fuzzy=True)
+        import requests
+
+        def download_model():
+            url = "https://huggingface.co/username/lung-cancer-cnn/resolve/main/model.keras"
+            with open("model.keras", "wb") as f:
+                f.write(requests.get(url).content)
 
     st.write("Downloaded size:", os.path.getsize(model_path))
 
