@@ -10,7 +10,7 @@ import gdown
 import os
 import pandas as pd
 from keras.applications.resnet import preprocess_input
-from tensorflow.keras.models import load_model
+
 from huggingface_hub import hf_hub_download
 
 
@@ -31,21 +31,34 @@ def load_xgb_model():
     return model
 
 
+import requests
+import os
+from tensorflow.keras.models import load_model
+
 @st.cache_resource
 def load_cnn_model():
     model_path = "model.keras"
 
+    # Download only if the model is not already present
     if not os.path.exists(model_path):
-        import requests
+        url = "https://huggingface.co/kamal0813/lung_cancer-cnn-model/resolve/main/model.keras"
+        st.write("Downloading large CNN model... please wait (this may take 20–40 seconds).")
 
-        def download_model():
-            url = "https://huggingface.co/username/lung-cancer-cnn/resolve/main/model.keras"
-            with open("model.keras", "wb") as f:
-                f.write(requests.get(url).content)
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            with open(model_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        else:
+            st.error(f"Download failed! Status code: {response.status_code}")
+            st.stop()
 
-    st.write("Downloaded size:", os.path.getsize(model_path))
+    # Debug: check file size
+    st.write("Model file size downloaded:", os.path.getsize(model_path), "bytes")
 
     return load_model(model_path)
+
 
 
 
