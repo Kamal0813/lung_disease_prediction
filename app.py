@@ -41,7 +41,7 @@ def load_cnn_model():
 
     # This automatically handles large files, redirects, and caching
     model_path = hf_hub_download(
-        repo_id="kamal0813/lung_cancer-cnn-model",
+        repo_id="kamal0813/lung_cancer",
         filename="model.keras",
         cache_dir="."
     )
