@@ -30,26 +30,37 @@ def load_xgb_model():
     return model
 
 
-from huggingface_hub import hf_hub_download
-from tensorflow.keras.models import load_model
+import requests
 import os
+from tensorflow.keras.models import load_model
 import streamlit as st
 
 @st.cache_resource
 def load_cnn_model():
-    st.write("Downloading model from HuggingFace Hub…")
+    model_path = "model.keras"
 
-    # This automatically handles large files, redirects, and caching
-    model_path = hf_hub_download(
-        repo_id="kamal0813/lung_cancer",
-        filename="model.keras",
-        cache_dir="."
-    )
+    # Check if already downloaded
+    if os.path.exists(model_path):
+        st.write("Model exists. Size:", os.path.getsize(model_path))
+        return load_model(model_path)
 
-    st.write("Downloaded file size:", os.path.getsize(model_path))
+    # Direct Dropbox download link
+    url = "YOUR_DROPBOX_DIRECT_LINK_HERE"  # must end with ?dl=1
+    st.write("Downloading model from Dropbox... (this may take 20–40 seconds)")
+
+    response = requests.get(url, stream=True)
+    if response.status_code != 200:
+        st.error(f"Download failed! Status code: {response.status_code}")
+        st.stop()
+
+    with open(model_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    # Show file size after download
+    st.write("Downloaded size (bytes):", os.path.getsize(model_path))
 
     return load_model(model_path)
-
 
 
 
