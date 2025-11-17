@@ -47,17 +47,17 @@ def load_xgb_model():
 
 @st.cache_resource
 def load_cnn_model():
-
     model_path = "model.keras"
 
-    # Download only if not already downloaded
     if not os.path.exists(model_path):
         file_id = "1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ"
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
-        gdown.download(url, model_path, quiet=False)
+        gdown.download(url, output=model_path, quiet=False, fuzzy=True)
+
+    # Debug: Show file size
+    st.write("Downloaded file size:", os.path.getsize(model_path))
 
     return load_model(model_path)
-
 
 
 model_xgb = load_xgb_model()
