@@ -17,8 +17,8 @@ st.set_page_config(
 )
 
 carousel_items = [
-    {"img": "images/img1.jpg", "title": "Early Detection Saves Lives", "text": "Detect lung cancer faster with AI"},
-    {"img": "images/img2.jpeg", "title": "CT Scan Based Analysis", "text": "Upload scan and get instant prediction"}
+    {"img": "img1.jpg", "title": "Early Detection Saves Lives", "text": "Detect lung cancer faster with AI"},
+    {"img": "img2.jpeg", "title": "CT Scan Based Analysis", "text": "Upload scan and get instant prediction"}
 ]
 
 @st.cache_resource
