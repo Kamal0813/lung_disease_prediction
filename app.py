@@ -8,6 +8,25 @@ from tensorflow.keras.applications.resnet import preprocess_input
 from streamlit_carousel import carousel
 import gdown
 import os
+import pandas as pd
+from keras.layers import Conv2D, Dense, MaxPooling2D, Flatten, BatchNormalization, Dropout
+from keras.models import Sequential
+from keras.applications import VGG16
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.applications.resnet import preprocess_input
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import make_classification
+from sklearn.ensemble import GradientBoostingClassifier, AdaBoostClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from xgboost import XGBClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report,precision_score,recall_score,f1_score,confusion_matrix
+from tensorflow.keras.models import load_model
 
 st.set_page_config(
     page_title="Lung Cancer Detection System",
@@ -28,15 +47,17 @@ def load_xgb_model():
 
 @st.cache_resource
 def load_cnn_model():
+
     model_path = "model.keras"
 
     # Download only if not already downloaded
     if not os.path.exists(model_path):
-        file_id = "1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ"  # <-- replace with actual ID
-        url = f"https://drive.google.com/file/d/1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ/view?usp=drive_link={file_id}"
+        file_id = "1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ"  # correct file ID
+        url = f"https://drive.google.com/uc?id={file_id}"
         gdown.download(url, model_path, quiet=False)
 
     return load_model(model_path)
+
 
 
 model_xgb = load_xgb_model()
