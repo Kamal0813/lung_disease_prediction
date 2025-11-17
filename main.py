@@ -163,9 +163,9 @@ with open('lung_cancer_gb_model.pkl', 'wb') as f:
     pickle.dump(gb_classifier, f)
 
 # Dataset 2
-train_path_str = r'D:\Sem1\ADL\Project\Lung_detection\model\Chest_CTScan_images\data\train'
-val_path_str = r'D:\Sem1\ADL\Project\Lung_detection\model\Chest_CTScan_images\data\valid'
-test_path_str = r'D:\Sem1\ADL\Project\Lung_detection\model\Chest_CTScan_images\data\test'
+train_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\train'
+val_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\valid'
+test_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\test'
 
 input_shape = (224, 224, 3)
 num_classes = 4
