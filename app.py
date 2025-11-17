@@ -52,8 +52,8 @@ def load_cnn_model():
 
     # Download only if not already downloaded
     if not os.path.exists(model_path):
-        file_id = "1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ"  # correct file ID
-        url = f"https://drive.google.com/uc?id={file_id}"
+        file_id = "1CHLjsExzKznbDbYgUiwZTc1lyGXbhqqQ"
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
         gdown.download(url, model_path, quiet=False)
 
     return load_model(model_path)
