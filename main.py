@@ -1,379 +1,294 @@
-import numpy as np
 import pandas as pd
-
+import numpy as np
+from keras.layers import Conv2D, Dense, MaxPooling2D, Flatten, BatchNormalization, Dropout
+from keras.models import Sequential
+from keras.applications import VGG16
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.applications.resnet import preprocess_input
+from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.datasets import make_classification
+from sklearn.ensemble import GradientBoostingClassifier, AdaBoostClassifier, RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from xgboost import XGBClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report,precision_score,recall_score,f1_score,confusion_matrix
 
-import tensorflow as tf
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import (
-    Dense, Dropout, BatchNormalization, Input, Concatenate,
-    Reshape, GlobalMaxPooling1D, GlobalAveragePooling1D,
-    TimeDistributed, MultiHeadAttention, LayerNormalization,
-    Lambda, Embedding, Flatten
-)
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.utils import to_categorical
 
-# ============================
-# 1. LOAD & BASIC PREPROCESS
-# ============================
-df = pd.read_csv("lung_cancer.csv")
-print("Dataset shape:", df.shape)
-print(df.head())
+# Dataset 1
+df = pd.read_csv('/content/lung_cancer.csv')
 
-# Encode GENDER (M/F -> 0/1)
-le_gender = LabelEncoder()
-df["GENDER"] = le_gender.fit_transform(df["GENDER"])
+encorder = LabelEncoder()
+dataframe_col = df[["GENDER","SMOKING", "YELLOW_FINGERS", "ANXIETY", "PEER_PRESSURE", 'CHRONIC_DISEASE', "FATIGUE", "ALLERGY", 'WHEEZING',
+                   'ALCOHOL_CONSUMING', 'COUGHING', 'SHORTNESS_OF_BREATH',
+                    'SWALLOWING_DIFFICULTY', 'CHEST_PAIN', 'LUNG_CANCER']]
 
-# Encode TARGET (LUNG_CANCER: YES/NO -> 1/0)
-TARGET_COL = "LUNG_CANCER"
-le_target = LabelEncoder()
-df[TARGET_COL] = le_target.fit_transform(df[TARGET_COL])
+for col in dataframe_col.columns:
+  df[col] = encorder.fit_transform(df[col])
 
-# Convert all 1/2 binary columns to 0/1 (except already handled)
-binary_cols = [
-    col for col in df.columns
-    if df[col].nunique() == 2 and col not in ["GENDER", TARGET_COL]
-]
-for col in binary_cols:
-    if set(df[col].unique()) == {1, 2}:
-        df[col] = df[col] - 1
+for col in dataframe_col.columns:
+  print(df[col].value_counts())
 
-# ============================
-# 2. FEATURE ENGINEERING
-# ============================
-# Add interaction features (binary × binary)
-df["SMOKING_YELLOW_FINGERS"] = df["SMOKING"] * df["YELLOW_FINGERS"]
-df["SMOKING_ANXIETY"] = df["SMOKING"] * df["ANXIETY"]
-df["ALCOHOL_FATIGUE"] = df["ALCOHOL_CONSUMING"] * df["FATIGUE"]
-df["COUGHING_CHEST_PAIN"] = df["COUGHING"] * df["CHEST_PAIN"]
-df["SHORT_BREATH_CHEST_PAIN"] = df["SHORTNESS_OF_BREATH"] * df["CHEST_PAIN"]
-
-# Add age-based interaction features (continuous)
-df["AGE_SMOKING"] = df["AGE"] * df["SMOKING"]
-df["AGE_ALCOHOL"] = df["AGE"] * df["ALCOHOL_CONSUMING"]
-df["AGE_CHEST_PAIN"] = df["AGE"] * df["CHEST_PAIN"]
-
-print("\nColumns after feature engineering:", df.columns.tolist())
-
-# ============================
-# 3. FEATURES & TARGET
-# ============================
-X = df.drop(columns=[TARGET_COL])
-y = df[TARGET_COL].values  # 0/1
-
-num_classes = 2
-
-# ============================
-# 4. TRAIN–TEST SPLIT
-# ============================
-X_train_df, X_test_df, y_train_raw, y_test_raw = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+#Plotting lung cancer ratio
+plt.pie(
+    df['LUNG_CANCER'].value_counts(),
+    labels = df['LUNG_CANCER'].value_counts().index,
+    autopct = '%1.1f%%'
 )
 
-# ============================
-# 5. SCALE NUMERICAL COLUMNS
-# ============================
-numeric_cols = ["AGE", "AGE_SMOKING", "AGE_ALCOHOL", "AGE_CHEST_PAIN"]
-other_cols = [c for c in X.columns if c not in numeric_cols]
+plt.title("Lung_Cancer")
+plt.show()
 
-scaler = StandardScaler()
-X_train_num = scaler.fit_transform(X_train_df[numeric_cols])
-X_test_num = scaler.transform(X_test_df[numeric_cols])
-
-X_train_other = X_train_df[other_cols].values.astype("float32")
-X_test_other = X_test_df[other_cols].values.astype("float32")
-
-# final input: [scaled numeric features] + other binary/engineered features
-X_train = np.concatenate([X_train_num, X_train_other], axis=1)
-X_test = np.concatenate([X_test_num, X_test_other], axis=1)
-
-input_dim = X_train.shape[1]
-print("Input dimension:", input_dim)
-
-# One-hot encode labels
-y_train = to_categorical(y_train_raw, num_classes=num_classes)
-y_test = to_categorical(y_test_raw, num_classes=num_classes)
-
-# ============================
-# 6. CLASS WEIGHTS
-# ============================
-class_weights_array = compute_class_weight(
-    class_weight="balanced",
-    classes=np.unique(y_train_raw),
-    y=y_train_raw
+#Plotting smoking ratio
+plt.pie(
+    df['SMOKING'].value_counts(),
+    labels = df['SMOKING'].value_counts().index,
+    autopct = '%1.1f%%'
 )
-class_weights = {i: w for i, w in enumerate(class_weights_array)}
-print("Class weights:", class_weights)
+plt.title("Smoking")
+plt.show()
 
-# ============================
-# 7. CALLBACKS
-# ============================
-CALLBACKS = [
-    # EarlyStopping(
-    #     monitor="val_loss",
-    #     patience=15,
-    #     restore_best_weights=True
-    # ),
-    ReduceLROnPlateau(
-        monitor="val_loss",
-        factor=0.5,
-        patience=7,
-        min_lr=1e-5
-    )
-]
+df.info()
 
-# ============================
-# 8. MODEL DEFINITIONS
-# ============================
+descip = df[['AGE', "SMOKING", "YELLOW_FINGERS", "ANXIETY", "PEER_PRESSURE", 'CHRONIC_DISEASE', "FATIGUE", "ALLERGY", 'WHEEZING',
+             'ALCOHOL_CONSUMING', 'COUGHING', 'SHORTNESS_OF_BREATH',
+             'SWALLOWING_DIFFICULTY', 'CHEST_PAIN', 'LUNG_CANCER']]
+descip.describe()
 
-# 8.1 ANN (with engineered features)
-def build_ann():
-    model = Sequential([
-        Dense(128, activation="relu", input_shape=(input_dim,)),
-        BatchNormalization(),
-        Dropout(0.2),
-        Dense(64, activation="relu"),
-        BatchNormalization(),
-        Dropout(0.1),
-        Dense(num_classes, activation="softmax")
-    ])
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(5e-4),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"]
-    )
-    return model
+fig, axes = plt.subplots(nrows=7, ncols=2, figsize=(16, 32))
+axes = axes.flatten()
+for idx, col in enumerate(descip.columns):
+  if idx < len(axes):
+    sns.histplot(x=col, data=descip, ax=axes[idx], hue='LUNG_CANCER', bins=20, multiple='stack')
+plt.tight_layout()
+plt.show()
 
-# 8.2 Deep Neural Network (DNN)
-def build_dnn():
-    model = Sequential([
-        Dense(256, activation="relu", input_shape=(input_dim,)),
-        BatchNormalization(),
-        Dropout(0.3),
-        Dense(128, activation="relu"),
-        BatchNormalization(),
-        Dropout(0.3),
-        Dense(64, activation="relu"),
-        BatchNormalization(),
-        Dense(num_classes, activation="softmax")
-    ])
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(5e-4),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"]
-    )
-    return model
+# plotting graph of lung cancer and age
+lung_cancer=df[df['LUNG_CANCER']==1]
+plt.figure(figsize=(10,5))
+sns.histplot(lung_cancer,x=df['AGE'],hue='LUNG_CANCER',bins=30)
+plt.title('Lung Cancer')
+plt.show()
 
-# 8.3 Dropout + BatchNorm Deep Network
-def build_dropout_bn():
-    model = Sequential([
-        Dense(512, activation="relu", input_shape=(input_dim,)),
-        BatchNormalization(),
-        Dropout(0.35),
-        Dense(256, activation="relu"),
-        BatchNormalization(),
-        Dropout(0.35),
-        Dense(128, activation="relu"),
-        BatchNormalization(),
-        Dropout(0.3),
-        Dense(num_classes, activation="softmax")
-    ])
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(5e-4),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"]
-    )
-    return model
+# Heatmap of the data
+numeric_col=df.select_dtypes(include=[np.number])
+corr=numeric_col.corr()
+plt.figure(figsize=(12,10))
+sns.heatmap(corr,annot=True,linewidths=0.5,fmt=".3f",cmap='viridis')
+plt.show()
 
-# 8.4 Deep & Cross Network (DCN)
-def cross_layer(x0, x, num_layers=3):
-    for _ in range(num_layers):
-        dot = Dense(1)(x)        # (batch,1)
-        cross = x0 * dot         # broadcast
-        x = cross + x            # residual-like
-    return x
+# preparing data for training and testing
+x = df.drop(columns='LUNG_CANCER')
+y = df['LUNG_CANCER']
+x.head()
 
-def build_dcn():
-    inputs = Input(shape=(input_dim,))
-    deep = Dense(128, activation="relu")(inputs)
-    deep = Dense(64, activation="relu")(deep)
+y.head()
 
-    cross = cross_layer(inputs, inputs)
+# data splitting
+x, y = make_classification(n_samples=500, n_features=15, random_state=42)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+scalar = StandardScaler()
+x_train = scalar.fit_transform(x_train)
+x_test = scalar.transform(x_test)
+# using xgbclassifier
+xgbclassifier=XGBClassifier(use_label_encoder=False, eval_metric='logloss',random_state=42)
+xgbclassifier.fit(x_train,y_train)
+y_pred=xgbclassifier.predict(x_test)
 
-    combined = Concatenate()([deep, cross])
-    x = Dense(64, activation="relu")(combined)
-    outputs = Dense(num_classes, activation="softmax")(x)
 
-    model = Model(inputs, outputs)
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(5e-4),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"]
-    )
-    return model
+accuracy = accuracy_score(y_test, y_pred) * 100
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+print(f"Accuracy: {accuracy:.2f}% | Precision: {precision:.4f} | Recall: {recall:.4f} | F1-Score: {f1:.4f}")
 
-# 8.5 Transformer-style model for tabular data
-def build_transformer_tabular(d_model=64, num_heads=4, ff_dim=128):
-    inputs = Input(shape=(input_dim,))
 
-    x = Reshape((input_dim, 1))(inputs)
-    x = TimeDistributed(Dense(d_model))(x)
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(4, 3))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=["Negative", "Positive"], yticklabels=["Negative", "Positive"])
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.title("Confusion Matrix - XGBClassifier")
+plt.show()
 
-    attn = MultiHeadAttention(
-        num_heads=num_heads,
-        key_dim=d_model // num_heads
-    )(x, x)
-    x = LayerNormalization(epsilon=1e-6)(x + attn)
+import pickle
+with open('lung_cancer_xgb_model.pkl', 'wb') as f:
+    pickle.dump(xgbclassifier, f)
 
-    ff = Sequential([
-        Dense(ff_dim, activation="relu"),
-        Dense(d_model)
-    ])
-    x = LayerNormalization(epsilon=1e-6)(x + ff(x))
+print("numpy", np.__version__)
+print("pandas", pd.__version__)
+print("seaborn", sns.__version__)
 
-    x = GlobalAveragePooling1D()(x)
 
-    x = Dense(128, activation="relu")(x)
-    x = Dropout(0.3)(x)
-    x = Dense(64, activation="relu")(x)
-    x = Dropout(0.2)(x)
-    outputs = Dense(num_classes, activation="softmax")(x)
-
-    model = Model(inputs, outputs)
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(5e-4),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"]
-    )
-    return model
-
-# 8.6 Autoencoder + Classifier (uses engineered features + class_weight)
-def train_autoencoder_classifier(X_train, X_test, y_train, y_test):
-    encoding_dim = 32
-
-    inp = Input(shape=(input_dim,))
-    encoded = Dense(128, activation="relu")(inp)
-    encoded = Dense(encoding_dim, activation="relu")(encoded)
-    decoded = Dense(128, activation="relu")(encoded)
-    decoded = Dense(input_dim, activation="linear")(decoded)
-
-    autoencoder = Model(inp, decoded)
-    autoencoder.compile(optimizer="adam", loss="mse")
-
-    autoencoder.fit(
-        X_train, X_train,
-        epochs=200,
-        batch_size=16,
-        validation_split=0.2,
-        verbose=0,
-        callbacks=CALLBACKS
-    )
-
-    encoder = Model(inp, encoded)
-    X_train_enc = encoder.predict(X_train)
-    X_test_enc = encoder.predict(X_test)
-
-    clf_inp = Input(shape=(encoding_dim,))
-    x = Dense(64, activation="relu")(clf_inp)
-    x = Dropout(0.3)(x)
-    out = Dense(num_classes, activation="softmax")(x)
-    clf = Model(clf_inp, out)
-    clf.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-
-    clf.fit(
-        X_train_enc, y_train,
-        epochs=200,
-        batch_size=16,
-        validation_split=0.2,
-        verbose=0,
-        callbacks=CALLBACKS,
-        class_weight=class_weights
-    )
-
-    probs = clf.predict(X_test_enc, verbose=0)
-    y_pred = probs.argmax(axis=1)
-    y_true = y_test.argmax(axis=1)
-    acc = accuracy_score(y_true, y_pred)
-
-    return acc, y_pred
-
-# ============================
-# 9. TRAIN ALL MODELS
-# ============================
-EPOCHS = 20
-BATCH_SIZE = 64
-
-models = {
-    "ANN": build_ann(),
-    "DNN": build_dnn(),
-    "Dropout_BN": build_dropout_bn(),
-    "DCN": build_dcn(),
-    "Transformer_Tabular": build_transformer_tabular()
+models={
+"LogisticRegression" : LogisticRegression(),
+"RandomForest" : RandomForestClassifier(n_estimators=100, random_state=42),
+"XGBClassifier" : XGBClassifier(use_label_encoder=False, eval_metric='logloss'),
+"KNN":KNeighborsClassifier(n_neighbors=10),
+"DecisionTree":DecisionTreeClassifier(random_state=42),
+"GradientBoosting": GradientBoostingClassifier(random_state=42),
+" AdaBoostClassifier":AdaBoostClassifier(random_state=42)
 }
+for name,model in models.items():
+  model.fit(x_train, y_train)
+  y_pred = model.predict(x_test)
 
-results = {}
-y_pred_dict = {}
+  accuracy = accuracy_score(y_test, y_pred) * 100
+  precision = precision_score(y_test, y_pred)
+  recall = recall_score(y_test, y_pred)
+  f1 = f1_score(y_test, y_pred)
+  print(f"Model: {name} | Accuracy: {accuracy:.2f}% | Precision: {precision:.4f} | Recall: {recall:.4f} | F1-Score: {f1:.4f}")
 
-print("\n================ TRAINING DEEP LEARNING MODELS (WITH FEATURE ENGINEERING) ================\n")
+gb_classifier = GradientBoostingClassifier(
+    n_estimators=200,
+    learning_rate=0.05,
+    max_depth=3,
+    random_state=42
+)
+gb_classifier.fit(x_train, y_train)
 
-for name, model in models.items():
-    print(f"Training {name}...")
-    model.fit(
-        X_train, y_train,
-        epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        validation_split=0.2,
-        verbose=0,
-        callbacks=CALLBACKS,
-        class_weight=class_weights
-    )
-    loss, acc = model.evaluate(X_test, y_test, verbose=0)
-    results[name] = acc
+y_pred = gb_classifier.predict(x_test)
 
-    probs = model.predict(X_test, verbose=0)
-    y_pred = probs.argmax(axis=1)
-    y_pred_dict[name] = y_pred
 
-    print(f"{name} Accuracy: {acc:.4f}\n")
+accuracy = accuracy_score(y_test, y_pred) * 100
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+print(f"Accuracy: {accuracy:.2f}% | Precision: {precision:.4f} | Recall: {recall:.4f} | F1-Score: {f1:.4f}")
 
-print("Training Autoencoder_Classifier...")
-ae_acc, ae_pred = train_autoencoder_classifier(X_train, X_test, y_train, y_test)
-results["Autoencoder_Classifier"] = ae_acc
-y_pred_dict["Autoencoder_Classifier"] = ae_pred
-print(f"Autoencoder_Classifier Accuracy: {ae_acc:.4f}\n")
+with open('lung_cancer_gb_model.pkl', 'wb') as f:
+    pickle.dump(gb_classifier, f)
 
-# ============================
-# 10. ACCURACY TABLE & CSV
-# ============================
-results_df = pd.DataFrame([
-    {"Model": name, "Accuracy": acc}
-    for name, acc in results.items()
+# Dataset 2
+train_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\train'
+val_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\valid'
+test_path_str = r'D:\Sem1\Project\Lung_detection\model\Chest_CTScan_images\data\test'
+
+input_shape = (224, 224, 3)
+num_classes = 4
+
+trainGenertor = ImageDataGenerator(
+    preprocessing_function=preprocess_input,
+    rotation_range=10,
+    width_shift_range=0.3,
+    height_shift_range=0.3,
+    shear_range=0.2,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    vertical_flip=True,
+)
+
+valGenertor = ImageDataGenerator(preprocessing_function=preprocess_input)
+testGenertor = ImageDataGenerator(preprocessing_function=preprocess_input)
+
+train_data = trainGenertor.flow_from_directory(
+    train_path_str, target_size=(224, 224), batch_size=16, class_mode='categorical'
+)
+val_data = valGenertor.flow_from_directory(
+    val_path_str, target_size=(224, 224), batch_size=16, class_mode='categorical'
+)
+test_data = testGenertor.flow_from_directory(
+    test_path_str, target_size=(224, 224), batch_size=16,
+    class_mode='categorical', shuffle=False
+)
+
+
+VGG16_model = VGG16(include_top=False, weights='imagenet', input_shape=input_shape)
+VGG16_model.trainable = False
+
+model = Sequential([
+    VGG16_model,
+    Flatten(),
+    BatchNormalization(),
+    Dense(1024, activation='relu'),
+    Dropout(0.3),
+    Dense(512, activation='relu'),
+    Dropout(0.3),
+    Dense(256, activation='relu'),
+    Dense(128, activation='relu'),
+    Dense(num_classes, activation='softmax')
 ])
 
-print("\n================ MODEL ACCURACY TABLE (WITH FEATURE ENGINEERING) ================\n")
-print(results_df)
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
 
-results_df.to_csv("model_accuracies_feature_engineered.csv", index=False)
-print("\nModel accuracies saved to 'model_accuracies_feature_engineered.csv'")
+callbacks = [
+    EarlyStopping(patience=7, restore_best_weights=True),
+    ModelCheckpoint("best_model.keras", save_best_only=True),
+    ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3)
+]
 
-# ============================
-# 11. CONFUSION MATRIX (BEST MODEL)
-# ============================
-best_model_name = max(results, key=results.get)
-best_acc = results[best_model_name]
+results = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=50,
+    callbacks=callbacks,
+    verbose=1
+)
 
-print(f"\nBest Model: {best_model_name} with accuracy {best_acc:.4f}")
+plt.figure(figsize=(7,5))
+plt.plot(results.history['accuracy'], label='Train Accuracy')
+plt.plot(results.history['val_accuracy'], label='Val Accuracy')
+plt.title("Training vs Validation Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.show()
 
-best_y_pred = y_pred_dict[best_model_name]
-best_y_true = y_test_raw
 
-cm = confusion_matrix(best_y_true, best_y_pred)
-print("\nConfusion Matrix (Best Model):")
-print(cm)
+plt.figure(figsize=(7,5))
+plt.plot(results.history['loss'], label='Train Loss')
+plt.plot(results.history['val_loss'], label='Val Loss')
+plt.title("Training vs Validation Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
 
-print("\nClassification Report (Best Model):")
-print(classification_report(best_y_true, best_y_pred, digits=4))
+
+true_labels = test_data.classes
+
+
+pred_probs = model.predict(test_data)
+pred_labels = np.argmax(pred_probs, axis=1)
+
+
+acc = accuracy_score(true_labels, pred_labels)
+print("Test Accuracy:", acc)
+
+
+class_labels = list(test_data.class_indices.keys())
+print("\nClassification Report:\n")
+print(classification_report(true_labels, pred_labels, target_names=class_labels))
+
+
+cm = confusion_matrix(true_labels, pred_labels)
+
+plt.figure(figsize=(8,6))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=class_labels, yticklabels=class_labels)
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+
+model.save("model.keras")
+
+
+with open("model.keras", "rb") as file:
+    print("Model file saved successfully:", file.name)
+
+
+
+
+
+
+
+
+
